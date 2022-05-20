@@ -88,12 +88,16 @@ def gc_it(X, Y, Z, data, **kwargs):
     y_data = np.array(data.loc[:, Y])
 
     if len(Z) == 0:
-        z_data = np.ones(len(x_data))
-        p_val = GCIT(x_data.reshape(-1, 1), y_data.reshape(-1, 1), z_data.reshape(-1, 1), verbose=False)
+        z_data = np.ones(len(x_data)).reshape(-1, 1)
+        p_val = GCIT(x_data.reshape(-1, 1), y_data.reshape(-1, 1), z_data.reshape(-1, 1), statistic = "rdc",
+                     lamda=10, normalize=True, verbose=False, n_iter=2000, debug=False)
 
     else:
         z_data = np.array(data.loc[:, list(Z)])
-        p_val = GCIT(x_data.reshape(-1, 1), y_data.reshape(-1, 1), z_data.reshape(-1, 1), verbose=False)
+        if len(z_data.shape) == 1:
+            z_data.reshape(-1, 1)
+        p_val = GCIT(x_data.reshape(-1, 1), y_data.reshape(-1, 1), z_data,  statistic = "rdc", lamda=10,
+                        normalize=True, verbose=False, n_iter=2000, debug=False)
 
     if p_val >= sig:
         return True
