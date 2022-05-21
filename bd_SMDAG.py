@@ -61,7 +61,6 @@ def bd_brute(graph, X, Y):
 		best_cost = np.inf
 
 		j = 1
-		iter_num = 0
 		while True:
 			combs = list(itertools.combinations(Unode_index, j))
 			combs_costs = []
@@ -74,9 +73,21 @@ def bd_brute(graph, X, Y):
 			combs_costs = np.asarray(combs_costs)[order_inds]
 			combs = np.asarray(combs)[order_inds]
 
-			k = 0
+			to_removes_inds = []
+			for jj, comb in enumerate(combs):
+				cost = combs_costs[jj]
+				if cost > best_cost:
+					to_removes_inds.append(jj)
 
+			if len(to_removes_inds) > 0:
+				print('pruning')
+				combs = np.delete(combs, to_removes_inds, axis=0).reshape(-1, j)
+				combs_costs = np.delete(combs_costs, to_removes_inds)
+
+			k = 0
 			while True:
+				if k >= len(combs):
+					break
 				comb = list(combs[k])
 				current_cost = combs_costs[k]
 
@@ -92,8 +103,7 @@ def bd_brute(graph, X, Y):
 						E = set(node_names)
 				k += 1
 
-				if k >= len(combs):
-					break
+
 			j += 1
 			if j >= len(Unode_index):
 				break
@@ -150,8 +160,8 @@ if __name__ == '__main__':
 
 	graph = nx.DiGraph()
 	graph.add_edge(0, 1, weight=1.0)
-	graph.add_edge(1, 2, weight=1.0)
-	graph.add_edge(2, 3, weight=1.0)
+	graph.add_edge(1, 'a', weight=1.0)
+	graph.add_edge('a', 3, weight=1.0)
 	graph.add_edge(4, 0, weight=1.0)
 	graph.add_edge(3, 5, weight=1.0)
 	graph.add_edge(4, 1, weight=1.0)
@@ -161,8 +171,8 @@ if __name__ == '__main__':
 	graph.add_edge(0, 8, weight=1.0)
 	graph.add_edge(3, 8, weight=1.0)
 	graph.add_edge(8, 9, weight=1.0)
-	graph.add_edge('U0', 0, weight=0.9)
-	graph.add_edge('U0', 1, weight=0.9)
+	graph.add_edge('U0', 0, weight=0.51)
+	graph.add_edge('U0', 1, weight=0.51)
 	graph.add_edge('U1', 0, weight=0.51)
 	graph.add_edge('U1', 3, weight=0.51)
 	graph.add_edge('U2', 8, weight=1.0)
