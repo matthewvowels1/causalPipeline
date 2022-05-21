@@ -73,16 +73,6 @@ def gc_it(X, Y, Z, data, **kwargs):
     # https: // github.com / alexisbellot / GCIT / blob / master / Tutorial.ipynb
     k = kwargs["knn"]
     sig = kwargs["significance_level"]
-    """ Adapted from https://github.com/syanga/pycit/blob/master/pycit/estimators/ksg_cmi.py
-        KSG Conditional Mutual Information Estimator: I(X;Y|Z)
-        See e.g. http://proceedings.mlr.press/v84/runge18a.html
-        data_matrix: all data
-        x: data nodes
-        y: data nodes
-        s: conditioning nodes
-        k: number of nearest neighbors for estimation
-           * k recommended to be on the order of ~ num_samples/10 for independence testing
-    """
 
     x_data = np.array(data.loc[:, X])
     y_data = np.array(data.loc[:, Y])

@@ -1,15 +1,78 @@
 from sklearn.metrics.pairwise import rbf_kernel
 from scipy.stats import ks_2samp
 from scipy.stats import wilcoxon
-import numpy as np
+import pandas as pd
 import random
+import numpy as np
 from scipy import stats
 import time
 from collections import defaultdict
 import numpy as np
 import warnings
 from scipy.stats import rankdata
+import matplotlib.pyplot as plt
+import seaborn as sns
+import networkx as nx
 
+def threshold_graph(digraph, threshold):
+    cols = digraph.nodes
+    # to dense
+    cm = nx.adjacency_matrix(digraph).todense()
+
+    plt.hist(cm.ravel().T, bins=20)
+    plt.show()
+
+    # threshold
+    cm[cm < threshold] = 0.0
+    cm[cm >= threshold] = 1.0
+
+    # back to graph
+    df_cm = pd.DataFrame(cm, index=cols,
+                         columns=cols)
+    digraph = nx.from_pandas_adjacency(df_cm.T, create_using=nx.DiGraph())
+
+    return digraph
+
+
+def get_rents_children(graph, var):
+    rents = list(graph.predecessors(var))
+    children = list(graph.successors(var))
+    return rents, children
+
+
+def plot_subbgraph(G, variables, size=(10, 8), subgraph_name='name', plot_adj=False, threshold=None):
+    H = nx.subgraph(G, variables)
+    variables = H.nodes
+
+    cmap = plt.get_cmap('cool')
+    #     pos = nx.spring_layout(H)
+    edge_widths = [w for (*edge, w) in H.edges.data('weight')]
+    edge_colors = [w for (*edge, w) in H.edges.data('weight')]
+    vmin = min(edge_colors)
+    vmax = max(edge_colors)
+
+    plt.figure(figsize=size)
+    nx.draw_shell(H, width=edge_widths, with_labels=True, vmin=vmin, vmax=vmax,
+                  node_color='lightgreen', edge_color='k',
+                  node_size=250, connectionstyle='arc3, rad=.15')
+    plt.savefig('results/' + subgraph_name + '.png', dpi=150)
+    plt.show()
+
+    if plot_adj:
+        cmap = plt.get_cmap('bone')
+        cm = nx.adjacency_matrix(H).todense()
+        df_cm = pd.DataFrame(cm, index=variables,
+                             columns=variables)
+
+        plt.figure(figsize=(23, 18))
+        sns.heatmap(df_cm.clip(lower=0.4, upper=0.7), cbar=False, linewidths=2, vmin=0.3, vmax=0.8, cmap=cmap,
+                    center=0.2)
+        plt.xlabel('Effects')
+        plt.ylabel('Causes')
+        name = 'Adjacency Graph w/ Confidence Threshold: {}'.format(threshold)
+        plt.savefig('results/' + subgraph_name + '_adj.png', dpi=150)
+        plt.title(name)
+        plt.show()
 
 
 def same(x):
