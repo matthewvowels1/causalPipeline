@@ -183,14 +183,14 @@ class SuperLearner(object):
 					x_train_poly = poly.fit_transform(x_train)
 					x_test_poly = poly.fit_transform(x_test)
 					if ((self.output == 'cls') or (
-							self.output == 'proba') or (self.output == 'cat')):
-						est = CalibratedClassifierCV(base_estimator=est, cv=8)
+							self.output == 'proba') or (self.output == 'cat')) and self.calibration:
+						est = CalibratedClassifierCV(base_estimator=est, cv=5)
 					est.fit(x_train_poly, y_train)
 
 				else:
 					if ((self.output == 'cls') or (
-							self.output == 'proba') or (self.output == 'cat')):
-						est = CalibratedClassifierCV(base_estimator=est, cv=8)
+							self.output == 'proba') or (self.output == 'cat')) and self.calibration:
+						est = CalibratedClassifierCV(base_estimator=est, cv=5)
 
 					est.fit(x_train, y_train)
 
