@@ -70,10 +70,19 @@ class TLP(object):
 		self.first_effects = {}
 		self.updated_estimates = {}
 		self.updated_effects = {}
+		self.updated_estimates_dr = {}
+		self.updated_effects_dr = {}
 		self.clev_covs = {}
+		self.clev_covs_dr = {}
 		self.epsilons = {}
 		self.ses = {}
+		self.ses_dr = {}
 		self.ps = {}
+		self.ps_dr = {}
+
+		self.condition1s = []
+		self.condition2s = []
+		self.condition3s = []
 
 		self.r_or = {}
 		self.r_ps1 = {}
@@ -98,11 +107,11 @@ class TLP(object):
 		print('Generating QAW Predictions ')
 		QAW = self.qslr.predict(self.Q_X)[:, 0] if self.outcome_type == 'reg' else self.qslr.predict_proba(
 			self.Q_X)[:, 1]
-		self.QAW = np.clip(QAW, 0.025, 0.975) if (self.outcome_type == 'cls') or (self.outcome_upper_bound is not None) else QAW
+		self.QAW = np.clip(QAW, 0.005, 0.995) if (self.outcome_type == 'cls') or (self.outcome_upper_bound is not None) else QAW
 
 		if self.outcome_upper_bound is not None and self.outcome_type == 'reg':
 			print('Bounding outcome predictions.')
-			self.QAW = np.clip(self.QAW, 0.025, 0.975)
+			self.QAW = np.clip(self.QAW, 0.005, 0.995)
 
 		all_preds_G, gts_G = None, None
 		# PROPENSITY SCORES
@@ -112,7 +121,7 @@ class TLP(object):
 			                         standardized_outcome=False)
 			all_preds_G, gts_G = self.gslr.fit(x=self.G_X, y=self.G_Y)
 			print('Generating G Predictions ')
-			self.Gpreds = np.clip(self.gslr.predict_proba(self.G_X), 0.025, 0.975)
+			self.Gpreds = np.clip(self.gslr.predict_proba(self.G_X), 0.005, 0.995)
 
 			print('SuperLearner Training Completed.')
 			self.Qbeta = self.qslr.beta
@@ -126,113 +135,132 @@ class TLP(object):
 			else:
 				unique, counts = np.unique(self.G_Y, return_counts=True)
 
-			self.Gpreds = np.repeat(np.clip(counts/len(self.G_Y), 0.025, 0.975).reshape(1, -1), len(self.G_Y), axis=0)
+			self.Gpreds = np.repeat(np.clip(counts/len(self.G_Y), 0.005, 0.995).reshape(1, -1), len(self.G_Y), axis=0)
 
 		return all_preds_Q, gts_Q, all_preds_G, gts_G
 
-	def _fit_or_ps_SLs(self, k, preds, outcome_type, targets, calibration=False):
+	def _fit_or_ps(self, k, preds, outcome_type, targets):
 		'''Fits the superlearners for R-PS1, and R-PS2'''
 
-		learners = self.G_learners if outcome_type != 'reg' else self.Q_learners
-		print(outcome_type, learners)
-
-		r_slr = SuperLearner(output=outcome_type, calibration=calibration, learner_list=learners, k=k,
-		                         standardized_outcome=False)
-
+		r_slr = SuperLearner(output=outcome_type, learner_list=['LR'], k=k, standardized_outcome=False)
 		_, _ = r_slr.fit(x=preds, y=targets)
-
-		r_slr_preds = r_slr.predict(preds)[:, 0] if self.outcome_type == 'reg' else r_slr.predict_proba(
-			preds)[:, 1]
-		r_slr_preds = r_slr_preds if (outcome_type != 'proba') else np.clip(r_slr_preds, 0.025, 0.975)
+		r_slr_preds = r_slr.predict(preds)[:, 0] if outcome_type == 'reg' else r_slr.predict_proba(preds)[:, 1]
+		r_slr_preds = r_slr_preds if (outcome_type != 'proba') else np.clip(r_slr_preds, 0.005, 0.995)
 		return r_slr_preds
 
 
-	def dr_target_multigroup(self, group_comparisons=None, iterations=10):
-
+	def dr_target_multigroup(self, group_comparisons=None, iterations=10, k=5):
+		assert self.num_confs != 0, 'No confounders, use regular target_multigroup() function instead.'
 		# GO THROUGH REGULAR UPDATE PROCESS BEFORE COMPUTING ADDITIONAL ELEMENTS FOR THE DOUBLY ROBUST INFERENCE
 		# STEP 1 in Benkeser et al. 2017
 		print('Generating predictions for counterfactual outcomes...')
 		self._q_pred_groups()
 
-		print('Computing group differences between counterfactual outcomes...')
-		self._group_diffs(group_comparisons=group_comparisons)
-
-		# STEP 2 in Benkeser et al. 2017
-		print('Computing clever covariates...')
-		self._q_clever_covs(group_comparisons)
-
-		print('Estimating fluctuation parameters...')
-		self._fluctation_params(group_comparisons=group_comparisons)
-
-		print('Updating initial counterfactual predictions...')
-		self._updating_q(group_comparisons=group_comparisons)
-
-		# NOW COMPUTE R-PS1 and R-PS2
-		# TODO: set k and calibration
 		for group_comparison in group_comparisons:
 			group_a = group_comparison[0]
+			group_ref = group_comparison[1]
 			dummys = self.A_dummys.iloc[:, group_a].values
-			QAW_st = self.updated_estimates[str(group_comparison)][2].reshape(-1, 1)
-			Q_group_ref = self.updated_estimates[str(group_comparison)][1]
-			Q_group_a = self.updated_estimates[str(group_comparison)][2]
 			G_a = self.Gpreds[:, group_a]
+			Q_group_a = self.Qpred_groups[group_a]
+			Q_group_ref = self.Qpred_groups[group_ref]
+			QAW_st = self.QAW
+			Y = self.Q_Y
 
-			for k in range(iterations):
-				print('Doubly-robust inference iteration:', k+1)
-				targets_rps2_1 = (dummys - G_a) / G_a
-				targets_rps2_0 = ((1 - dummys) + G_a) / (1 - G_a)
-				QAW_st = QAW_st.reshape(-1, 1) if (len(QAW_st.shape) == 1) else QAW_st
+			for j in range(iterations):  # in Benkeser et al. (2017), this is k, not j
+				print('Doubly-robust inference iteration:', j + 1)
+				# STEP 2 in Benkeser et al. 2017
+				H1nk = dummys / G_a
+
+				if self.outcome_type == 'cls' or self.outcome_upper_bound is not None:
+					eps = sm.GLM(np.asarray(Y[dummys == 1]).astype('float'), H1nk[dummys == 1],
+					             offset=logit(Q_group_a[dummys == 1]),
+					             family=sm.families.Binomial()).fit().params[0]
+				else:
+					eps = (sm.GLM(np.asarray(Y[dummys == 1]).astype('float'), H1nk[dummys == 1],
+					              offset=Q_group_a[dummys == 1]).fit()).params[
+						0]
+
+				if self.outcome_type == 'cls' or self.outcome_upper_bound is not None:
+					Q_group_a = (expit(logit(Q_group_a) + eps * (1 / G_a)))
+
+				else:
+					Q_group_a = Q_group_a + eps * (1 / G_a)
+
 				# STEP 3 in Benkeser et al. 2017
-				rps1_slr_1 = self._fit_or_ps_SLs(k=5, preds=QAW_st, outcome_type='proba', targets=dummys, calibration=False)
-				rps2_slr_1 = self._fit_or_ps_SLs(k=5, preds=QAW_st, outcome_type='reg', targets=targets_rps2_1, calibration=False)
+				targets_rps2_1 = (dummys - G_a) / G_a
+				targets_rps1_1 = dummys
 
-				rps1_slr_0 = self._fit_or_ps_SLs(k=5, preds=QAW_st, outcome_type='proba', targets=(1 - dummys), calibration=False)
-				rps2_slr_0 = self._fit_or_ps_SLs(k=5, preds=QAW_st, outcome_type='reg', targets=targets_rps2_0, calibration=False)
+				g10r_1 = self._fit_or_ps(k=k, preds=Q_group_a.reshape(-1, 1), outcome_type='proba',
+				                            targets=targets_rps1_1)
+				g20r_1 = self._fit_or_ps(k=k, preds=Q_group_a.reshape(-1, 1), outcome_type='reg',
+				                            targets=targets_rps2_1)
 
 				# STEP 4 in Benkeser et al. 2017
-				clev_covs_ps1 = rps2_slr_1 / rps1_slr_1
-				clev_covs_ps0 = rps2_slr_0 / rps1_slr_0
-				clev_covs_psaw = dummys * clev_covs_ps1 + (1 - dummys) * clev_covs_ps0
-
+				H2nk = dummys * g20r_1 / g10r_1
 
 				if self.outcome_type == 'cls' or self.outcome_upper_bound is not None:
-					eps_ps = sm.GLM(np.asarray(self.Q_Y).astype('float'), clev_covs_psaw, offset=logit(QAW_st[:, 0]),
-					             family=sm.families.Binomial()).fit().params[0]
+					eps_ps = sm.GLM(np.asarray(Y[dummys == 1]).astype('float'), H2nk[dummys == 1],
+					                offset=logit(Q_group_a[dummys == 1]),
+					                family=sm.families.Binomial()).fit().params[0]
 				else:
-					eps_ps = (sm.GLM(np.asarray(self.Q_Y).astype('float'), clev_covs_psaw, offset=QAW_st[:, 0]).fit()).params[0]
-
+					eps_ps = (sm.GLM(np.asarray(Y[dummys == 1]).astype('float'), H2nk[dummys == 1],
+					                 offset=Q_group_a[dummys == 1]).fit()).params[0]
 
 				if self.outcome_type == 'cls' or self.outcome_upper_bound is not None:
-					Q_group_a = (expit(logit(Q_group_a) + eps_ps * clev_covs_ps1))
-
-					Q_group_ref = (expit(logit(Q_group_ref) + eps_ps * clev_covs_ps0))
+					Q_group_a = (expit(logit(Q_group_a) + eps_ps * H2nk))
 
 				else:
-					Q_group_a = Q_group_a + eps_ps * clev_covs_ps1
-					Q_group_ref = Q_group_ref + eps_ps * clev_covs_ps0
-				QAW_st = dummys * Q_group_a + (1 - dummys) * Q_group_ref
+					Q_group_a = Q_group_a + eps_ps * H2nk
 
 				# STEP 5 in Benkeser et al. 2017
-				residual = self.Q_Y - QAW_st
-				r_os_1 = dummys * self._fit_or_ps_SLs(k=5, preds=G_a.reshape(-1, 1), outcome_type=self.outcome_type, targets=residual, calibration=False)
-				r_os_0 = (1 - dummys) * self._fit_or_ps_SLs(k=5, preds=(1 - G_a).reshape(-1, 1), outcome_type=self.outcome_type, targets=residual, calibration=False)
-				r_os_aw = r_os_1 + r_os_0
+				residual = Y - Q_group_a
+
+				Q0r_1 = self._fit_or_ps(k=5, preds=G_a.reshape(-1, 1), outcome_type='reg',
+				                           targets=residual)
 
 				# STEP 6 in Benkeser et al. 2017
-				clev_covs_or = r_os_aw / G_a
-				print(clev_covs_or, G_a)
-				eps_or = sm.GLM(dummys.astype('float'), clev_covs_or, offset=logit(G_a),
+				H3nk = Q0r_1 / G_a
+
+				eps_or = sm.GLM(dummys.astype('float'), H3nk, offset=logit(G_a),
+				                family=sm.families.Binomial()).fit().params[0]
+
+				G_a = np.clip((expit(logit(G_a) + eps_or * H3nk)), 0.005, 0.995)
+
+				# finally reupdate targeted estimate
+				H1nk1 = dummys / G_a
+				H1nk0 = - dummys / (1 - G_a)
+				H1nk = H1nk1 + H1nk0
+
+				if self.outcome_type == 'cls' or self.outcome_upper_bound is not None:
+					eps = sm.GLM(np.asarray(Y).astype('float'), H1nk, offset=logit(QAW_st),
 					             family=sm.families.Binomial()).fit().params[0]
+				else:
+					eps = (sm.GLM(np.asarray(Y).astype('float'), H1nk[dummys == 1], offset=QAW_st).fit()).params[
+						0]
 
-				G_a = np.clip((expit(logit(G_a) + eps_or * clev_covs_or)), 0.025, 0.975)
+				if self.outcome_type == 'cls' or self.outcome_upper_bound is not None:
+					Q_group_a = (expit(logit(Q_group_a) + eps * H1nk1))
+					Q_group_ref = (expit(logit(Q_group_ref) + eps * H1nk0))
+					QAW_st = (expit(logit(QAW_st) + eps * H1nk))
+				else:
+					Q_group_a = Q_group_a + eps * H1nk1
+					Q_group_ref = Q_group_ref + eps * H1nk0
+					QAW_st = QAW_st + eps * H1nk
 
-				# STEP 7 in Benkeser et al. 2017 (check convergence)
-				condition_1 = ((dummys / G_a) * (self.Q_Y - QAW_st)).mean()
-				condition_2 = ((r_os_aw / G_a) * (dummys - G_a)).mean()
-				condition_3 = (((dummys * rps2_slr_1) / rps1_slr_1) * (self.Q_Y - QAW_st)).mean()
-				print(np.round(condition_1, 4), np.round(condition_2, 4), np.round(condition_3, 4))
+				self.condition1s.append((((dummys * g20r_1) / g10r_1) * (
+							Y - QAW_st)).mean())  # ('8') in R tutorial, p 870 in Benkeser et al. 2017
+				self.condition2s.append(
+					((Q0r_1 / G_a) * (dummys - G_a)).mean())  # (6) in R tutorial, p 869 in Benkeser et al. 2017
+				self.condition3s.append(((dummys / G_a) * (Y - QAW_st)).mean())  # (5) in R tutorial
 
 			# update self.(all_variables)
+			self.updated_estimates_dr[str(group_comparison)] = (Q_group_a, Q_group_ref, QAW_st)
+			self.updated_effects_dr[str(group_comparison)] = (Q_group_a - Q_group_ref).mean()
+			self.clev_covs_dr[str(group_comparison)] = (H1nk1, H1nk0, H1nk)
+
+		self._computing_IF(group_comparisons=group_comparisons, dr_flag=True)
+
+		return self.first_effects, self.updated_effects_dr, self.ses_dr, self.ps_dr
 
 	def target_multigroup(self, group_comparisons=None):
 		'''Runs multigroup targeted learning to estimate causal effects, standard errors, and p-values.
@@ -258,10 +286,9 @@ class TLP(object):
 		self._updating_q(group_comparisons=group_comparisons)
 
 		print('Deriving the Influence Function, standard error, CI bounds and p-values')
-		self._computing_IF(group_comparisons=group_comparisons)
+		self._computing_IF(group_comparisons=group_comparisons, dr_flag=False)
 
 		return self.first_effects, self.updated_effects, self.ses, self.ps
-
 
 
 	def _inference(self, ic, effect):
@@ -279,7 +306,7 @@ class TLP(object):
 			qps = self.qslr.predict(int_data)[:,
 			                           0] if self.outcome_type == 'reg' else self.qslr.predict_proba(int_data)[:, 1]
 
-			self.Qpred_groups[group] = np.clip(qps, 0.025, 0.975) if (self.outcome_type == 'cls') or (self.outcome_upper_bound is not None) else qps
+			self.Qpred_groups[group] = np.clip(qps, 0.005, 0.995) if (self.outcome_type == 'cls') or (self.outcome_upper_bound is not None) else qps
 
 	def _group_diffs(self, group_comparisons):
 		# GROUP DIFFERENCES
@@ -346,14 +373,19 @@ class TLP(object):
 			self.updated_estimates[str(group_comparison)] = (group_a_update, group_ref_update, group_aw_update)
 			self.updated_effects[str(group_comparison)] = (group_a_update - group_ref_update).mean()
 
-	def _computing_IF(self, group_comparisons):
+	def _computing_IF(self, group_comparisons, dr_flag=False):
 		# COMPUTING THE IF
 		for group_comparison in group_comparisons:
-			clev_cov_group = self.clev_covs[str(group_comparison)][0]
-			ystar_a, ystar_ref = self.updated_estimates[str(group_comparison)][0], \
-			                     self.updated_estimates[str(group_comparison)][1]
-			effect_star = self.updated_effects[str(group_comparison)]
-			IC = clev_cov_group * (self.Q_Y.values - self.QAW) + (ystar_a - ystar_ref) - effect_star
+			clev_cov_group = self.clev_covs[str(group_comparison)][0] if not dr_flag else self.clev_covs_dr[str(group_comparison)][0]
+			ystar_a = self.updated_estimates[str(group_comparison)][0] if not dr_flag else self.updated_estimates_dr[str(group_comparison)][0]
+			ystar_ref = self.updated_estimates[str(group_comparison)][1] if not dr_flag else self.updated_estimates_dr[str(group_comparison)][1]
+			QAW_st = self.updated_estimates[str(group_comparison)][2]  if not dr_flag else self.updated_estimates_dr[str(group_comparison)][2]
+			effect_star = self.updated_effects[str(group_comparison)] if not dr_flag else self.updated_effects_dr[str(group_comparison)]
+			IC = clev_cov_group * (self.Q_Y.values - QAW_st) + (ystar_a - ystar_ref) - effect_star
 			se, p, upper_bound, lower_bound = self._inference(ic=IC, effect=effect_star)
-			self.ses[str(group_comparison)] = (se, upper_bound, lower_bound)
-			self.ps[str(group_comparison)] = p
+			if dr_flag:
+				self.ses_dr[str(group_comparison)] = (se, upper_bound, lower_bound)
+				self.ps_dr[str(group_comparison)] = p
+			else:
+				self.ses[str(group_comparison)] = (se, upper_bound, lower_bound)
+				self.ps[str(group_comparison)] = p
