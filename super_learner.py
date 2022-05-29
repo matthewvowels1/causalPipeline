@@ -12,7 +12,9 @@ from sklearn.neural_network import MLPRegressor, MLPClassifier
 from warnings import filterwarnings
 from sklearn.naive_bayes import GaussianNB
 from tqdm import tqdm
-
+import random
+np.random.seed(0)
+random.seed(0)
 
 
 def fn(x, A, b):
@@ -39,7 +41,7 @@ def combiner_solve(x, y):
 
 
 class SuperLearner(object):
-	def __init__(self, output, k, standardized_outcome=False, calibration=True, learner_list=None ):
+	def __init__(self, output, k, standardized_outcome=False, calibration=True, learner_list=None, seed=0):
 		self.learner_list = learner_list
 		self.num_learners = len(learner_list)
 		self.k = k  # number of cross validation folds
@@ -49,56 +51,58 @@ class SuperLearner(object):
 		self.est_dict = None  # dictionary of learners/algos
 		self.standardized_outcome = standardized_outcome
 		self.calibration = calibration
-
+		self.seed = seed
 		self.x_std = None
 		self.x_mean = None
 		self.y_std = None
 		self.y_mean = None
 		self.num_classes = None
+		np.random.seed(self.seed)
+		random.seed(self.seed)
 
 	def _init_learners(self):
 		est_dict = {}
 		for learner in self.learner_list:
 			if learner == 'Elastic':
 				l = 'Elastic0.25'
-				est_dict[l] = ElasticNet(alpha=0.25)
+				est_dict[l] = ElasticNet(alpha=0.25, random_state=self.seed)
 				l = 'Elastic0.5'
-				est_dict[l] = ElasticNet(alpha=0.5)
+				est_dict[l] = ElasticNet(alpha=0.5, random_state=self.seed)
 				l = 'Elastic0.75'
-				est_dict[l] = ElasticNet(alpha=0.75)
+				est_dict[l] = ElasticNet(alpha=0.75, random_state=self.seed)
 				l = 'Elastic1'
-				est_dict[l] = ElasticNet(alpha=0.1)
+				est_dict[l] = ElasticNet(alpha=0.1, random_state=self.seed)
 			elif learner == 'LR':
 				if ((self.output == 'cls') or (
 						self.output == 'proba') or (self.output == 'cat')):
-					est_dict[learner] = LogisticRegression(max_iter=500)
+					est_dict[learner] = LogisticRegression(max_iter=500, random_state=self.seed)
 				else:
 					est_dict[learner] = LinearRegression()
 			elif learner == 'MLP':
 				if ((self.output == 'cls') or (
 						self.output == 'proba') or (self.output == 'cat')):
-					est_dict[learner] = MLPClassifier(alpha=0.001, max_iter=2000)
+					est_dict[learner] = MLPClassifier(alpha=0.001, max_iter=2000, random_state=self.seed)
 				else:
-					est_dict[learner] = MLPRegressor(alpha=0.001, max_iter=2000)
+					est_dict[learner] = MLPRegressor(alpha=0.001, max_iter=2000, random_state=self.seed)
 			elif learner == 'SV':
 				if ((self.output == 'cls') or (
 						self.output == 'proba') or (self.output == 'cat')):
-					est_dict[learner] = SVC(probability=True)
+					est_dict[learner] = SVC(probability=True, random_state=self.seed)
 				else:
-					est_dict[learner] = SVR()
+					est_dict[learner] = SVR(random_state=self.seed)
 			elif learner == 'AB':
 				if ((self.output == 'cls') or (
 						self.output == 'proba') or (self.output == 'cat')):
-					est_dict[learner] = AdaBoostClassifier()
+					est_dict[learner] = AdaBoostClassifier(random_state=self.seed)
 				else:
-					est_dict[learner] = AdaBoostRegressor()
+					est_dict[learner] = AdaBoostRegressor(random_state=self.seed)
 
 			elif learner == 'RF':
 				if ((self.output == 'cls') or (
 						self.output == 'proba') or (self.output == 'cat')):
-					est_dict[learner] = RandomForestClassifier()
+					est_dict[learner] = RandomForestClassifier(random_state=np.random.RandomState(self.seed))
 				else:
-					est_dict[learner] = RandomForestRegressor()
+					est_dict[learner] = RandomForestRegressor(random_state=np.random.RandomState(self.seed))
 
 			elif learner == 'BR' or 'NB':
 				if ((self.output == 'cls') or (
@@ -141,9 +145,9 @@ class SuperLearner(object):
 
 		if ((self.output == 'cls') or (
 				self.output == 'proba') or (self.output == 'cat')):
-			kf = StratifiedKFold(n_splits=self.k, shuffle=True, random_state=0)
+			kf = StratifiedKFold(n_splits=self.k, shuffle=True, random_state=self.seed)
 		else:
-			kf = KFold(n_splits=self.k, shuffle=True, random_state=0)
+			kf = KFold(n_splits=self.k, shuffle=True, random_state=self.seed)
 
 		self._init_learners()
 
@@ -177,7 +181,7 @@ class SuperLearner(object):
 					y_test = (y_test - y_mean) / y_std
 
 				if key == 'poly':
-					est = LogisticRegression(C=1e2, max_iter=350) if ((self.output == 'cls') or (
+					est = LogisticRegression(C=1e2, max_iter=350, random_state=self.seed) if ((self.output == 'cls') or (
 							self.output == 'proba') or (self.output == 'cat')) else LinearRegression()
 					poly = PolynomialFeatures(2)
 					x_train_poly = poly.fit_transform(x_train)
@@ -221,7 +225,7 @@ class SuperLearner(object):
 			est = self.est_dict[key]
 
 			if key == 'poly':
-				est = LogisticRegression(C=1e2, max_iter=350) if ((self.output == 'cls') or (
+				est = LogisticRegression(C=1e2, max_iter=350, random_state=self.seed) if ((self.output == 'cls') or (
 						self.output == 'proba') or (self.output == 'cat')) else LinearRegression()
 				poly = PolynomialFeatures(2)
 				x_poly = poly.fit_transform(x)
