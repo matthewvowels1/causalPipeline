@@ -186,7 +186,7 @@ class TLP(object):
 		return Q_group_a, Q_group_ref, QAW_st, H
 
 	def dr_target_multigroup(self, group_comparisons=None, iterations=10, k=5):
-		assert self.num_confs != 0, 'No confounders, use regular target_multigroup() function instead.'
+		# assert self.num_confs != 0, 'No confounders, use regular target_multigroup() function instead.'
 		# GO THROUGH REGULAR UPDATE PROCESS BEFORE COMPUTING ADDITIONAL ELEMENTS FOR THE DOUBLY ROBUST INFERENCE
 		# STEP 1 in Benkeser et al. 2017
 		print('Generating predictions for counterfactual outcomes...')

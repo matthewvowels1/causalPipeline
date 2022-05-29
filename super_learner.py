@@ -89,7 +89,7 @@ class SuperLearner(object):
 						self.output == 'proba') or (self.output == 'cat')):
 					est_dict[learner] = SVC(probability=True, random_state=self.seed)
 				else:
-					est_dict[learner] = SVR(random_state=self.seed)
+					est_dict[learner] = SVR()
 			elif learner == 'AB':
 				if ((self.output == 'cls') or (
 						self.output == 'proba') or (self.output == 'cat')):
