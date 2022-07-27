@@ -212,5 +212,6 @@ if __name__ == '__main__':
 
     est = string
     IF = IF_derivation(est)
+    print(IF)
     print('\n Plotting latex...')
     display(Math(IF))

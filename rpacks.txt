@@ -1,0 +1,10 @@
+broom 
+DBI 
+dbplyr 
+dplyr 
+hexbin 
+ggplot2 
+lme4 
+RSQLite 
+hal9001 
+tidyr

@@ -47,7 +47,7 @@ whilst accessing the associated jupyter server on the local host at:
 localhost:8889/ 
 ```
 
-When you ```exit``` the interactive docker image, you can save the image in its current state by checking the container ID:
+After you ```exit``` the interactive docker image, you can save the image in its current state by first checking the container ID:
 
 ```docker ps``` 
 
@@ -63,7 +63,7 @@ If you want to remove/delete an image:
 
 You can run:
 ```
-nvidia-docker run -it --init --ipc=host -v /folder/to/mount/:/tmp/folder -p 8889:8888 35f8070e9363 /bin/bash
+nvidia-docker run -it --init --ipc=host -v /folder/to/mount/:/tmp/folder -p 8889:8888 e57df5688f0f /bin/bash
 ```
 
 ## For most up to date methods
@@ -85,6 +85,33 @@ otherwise, an older version of SAM will be installed, which won't have the capac
 
 Don't forget to save/commit the docker image (following the instructions above)
 
+### Installing R packages
+
+Pyhal uses rpy2==3.2.1 to call functions in R (rpy2 can be installed with ```python3 -mpip install rpy2==3.2.1```).
+
+There is a list of packages needed in the rpacks.txt file. These can be installed by running:
+
+```commandline
+while IFS=" " read -r package version; 
+do 
+  R -e "install.packages('"$package"', lib='/usr/local/lib/R/site-library')"; 
+done < "rpacks.txt"
+```
+
+
+and 
+
+```commandline
+while IFS=" " read -r package version; 
+do 
+  R -e "install.packages('"$package"', lib='/usr/lib/R/site-library')"; 
+done < "rpacks.txt"
+```
+
+
+### docker versioning
+causal_pipeline_v0.2 - first working version [no pyhal yet]
+causal_pipeline_v0.3 - beginning work on pyhal using rpy2
 
 ### REFERENCES
 
