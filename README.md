@@ -134,4 +134,4 @@ Of course, one expects that in cases where the parametric assumption does not ho
 
 ### REFERENCES
 
-[26] Kalainathan, Diviyan & Goudet, Olivier & Guyon, Isabelle & Lopez-Paz, Dav
+[1] Kalainathan, Diviyan & Goudet, Olivier & Guyon, Isabelle & Lopez-Paz, Dav
