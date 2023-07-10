@@ -1,22 +1,18 @@
 # causalPipeline
-A collection of causal resources for psychologists and social scientists. 
+A collection of causal resources for psychologists and social scientists accompanying the paper:
 
-Includes:
+'A Causal Research Pipeline and Tutorial for Psychologists and Social Scientists' (blinded for peer review).
 
-- 'ML_structural_interactions' PC algo with MI estimators and GCIT (needs tensorflow)
-- 
+# Tutorial File
 
+Includes a tutorial ipynb file  ```causal_pipeline_tutorial.ipynb``` which steps through the analysis.
 
-# for GPU stuff:
-
-nvidia-docker run -it --init --ipc=host -v /GitHub/Psych_ML/causalPipeline:/tmp/causalPipeline -p 8889:8888 35f8070e9363 /bin/bash
-
-jupyter notebook --ip 0.0.0.0 --no-browser --allow-root
-localhost:8889/tree‌  <- access this via host
+Utilises data acquired with permission from https://www.icpsr.umich.edu/web/ICPSR/studies/37404/summary
 
 
+# Installation
 
-## Instructions for SAM and Docker
+## 1. Installing the Docker Image (recommended to use SAM causal discovery)
 
 This analysis uses SAM[1] which is included in the Causal Discovery Toolbox https://fentechsolutions.github.io/
 
@@ -59,14 +55,16 @@ If you want to remove/delete an image:
 ```docker rmi -f <image id> ```
 
 
-## For GPU stuff:
-
-You can run:
+#### For GPU stuff:
 ```
-nvidia-docker run -it --init --ipc=host -v /folder/to/mount/:/tmp/folder -p 8889:8888 e57df5688f0f /bin/bash
-```
+nvidia-docker run -it --init --ipc=host -v /GitHub/Psych_ML/causalPipeline:/tmp/causalPipeline -p 8889:8888 35f8070e9363 /bin/bash
 
-## For most up to date methods
+jupyter notebook --ip 0.0.0.0 --no-browser --allow-root
+```
+Then, access this via host with a browser: ```localhost:8889/tree‌```  
+
+## 2. Install Packages
+
 
 Once in the interactive docker image, run:
 
@@ -109,14 +107,10 @@ done < "rpacks.txt"
 ```
 
 
-### docker versioning
-causal_pipeline_v0.2 - first working version [no pyhal yet]
-causal_pipeline_v0.3 - beginning work on pyhal using rpy2
 
+# (Extra) PC-Algorithm Evaluation Results
 
-### PC-Algorithm Results
-
-In the figures below we show results for the well-known PC algorithm Spirtes et al. 2000
+In the figures below we show extra results which are not included in the accompanying paper for the well-known PC algorithm Spirtes et al. 2000
 The results illustrate the differences in performance (across a range of sample sizes) between a linear, correlation-based conditional independence test, and a nonparametric, k-nearest neighbours conditional mutual information based conditional independence test (Runge et al., 2018). 
 
 We show below the true, 9-node, 9-edge graph for the underlying data generating structure. All exogenous (not shown) variables are Gaussian. 
