@@ -9,7 +9,7 @@ Includes:
 
 # for GPU stuff:
 
-nvidia-docker run -it --init --ipc=host -v /home/matthewvowels/GitHub/Psych_ML/causalPipeline:/tmp/causalPipeline -p 8889:8888 35f8070e9363 /bin/bash
+nvidia-docker run -it --init --ipc=host -v /GitHub/Psych_ML/causalPipeline:/tmp/causalPipeline -p 8889:8888 35f8070e9363 /bin/bash
 
 jupyter notebook --ip 0.0.0.0 --no-browser --allow-root
 localhost:8889/tree‌  <- access this via host
@@ -112,6 +112,25 @@ done < "rpacks.txt"
 ### docker versioning
 causal_pipeline_v0.2 - first working version [no pyhal yet]
 causal_pipeline_v0.3 - beginning work on pyhal using rpy2
+
+
+### PC-Algorithm Results
+
+In the figures below we show results for the well-known PC algorithm Spirtes et al. 2000
+The results illustrate the differences in performance (across a range of sample sizes) between a linear, correlation-based conditional independence test, and a nonparametric, k-nearest neighbours conditional mutual information based conditional independence test (Runge et al., 2018). 
+
+We show below the true, 9-node, 9-edge graph for the underlying data generating structure. All exogenous (not shown) variables are Gaussian. 
+![alt text](test_graph.png)
+
+
+In the next figure we show the Structural Hamming Distance, which is a measure of how successful the algorithm was at correctly inferring the graph (smaller the better). 
+![alt text](pearsonr_vs_mi_ci_tests_SHD.png)
+Finally, below we show the algorithm runtime (in seconds). Firstly, it can be seen that the correlation based measure is notably better at inferring the structure than the mutual information based approach, particularly for small sample sizes.
+It can also be seen that the time taken to run the nonparametric version increases linearly with the sample size (over 50 minutes for a sample size of 2000) vastly exceeding the runtime of the correlation approach (which has a run of 0.26 seconds for a sample size of 2000). 
+Thus, the price paid for not having to make parametric assumptions is one of both computation time and, for a parametric data generating process, accuracy. 
+Of course, one expects that in cases where the parametric assumption does not hold, the advantages of non-parametric conditional independence tests become self-evident.
+
+![alt text](pearsonr_vs_mi_ci_tests_time.png)
 
 ### REFERENCES
 
