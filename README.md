@@ -3,18 +3,14 @@ A collection of causal resources for psychologists and social scientists accompa
 
 'A Causal Research Pipeline and Tutorial for Psychologists and Social Scientists' (blinded for peer review).
 
-# Tutorial File
-
-Includes a tutorial ipynb file  ```causal_pipeline_tutorial.ipynb``` which steps through the analysis.
+This repository includes a Tutorial notebook ```causal_pipeline_tutorial.ipynb``` which steps through the analysis.
 
 Utilises data acquired with permission from https://www.icpsr.umich.edu/web/ICPSR/studies/37404/summary
 
 
 # Ubuntu Installation
 
-
-
-
+To follow the steps of the pipeline, a variety of causal tools/packages are required. When running analyses with a wide variety of packages, dependency conflicts often arise. I therefore recommend a docker container is used (more on this below). In any case, the following steps for the installation of the packages using a common package manager such as anaconda are presented below.
 
 ## Complete Installation Example (with all conda and jupyter)
 A complete example with a conda environment, and jupyter notebook (assumes nvidia-docker is already installed and working):
