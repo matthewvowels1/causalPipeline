@@ -10,15 +10,83 @@ Includes a tutorial ipynb file  ```causal_pipeline_tutorial.ipynb``` which steps
 Utilises data acquired with permission from https://www.icpsr.umich.edu/web/ICPSR/studies/37404/summary
 
 
-# Installation
+# Ubuntu Installation
 
-## 1. Installing the Docker Image (recommended to use SAM causal discovery)
+
+
+
+
+## Complete Installation Example (with all conda and jupyter)
+A complete example with a conda environment, and jupyter notebook (assumes nvidia-docker is already installed and working):
+
+The installation is quite involved because the pipeline itself integrates tools from a wide variety of packages.
+
+IMPORTANT: If you are using nvidia-docker, do not forget to commit/save the docker image when you are done!
+
+
+### Environment Stuff
+1. If using docker, open an nvidia-docker container:
+```nvidia-docker run -ti -v /home/matthewvowels/GitHub/Psych_ML/causalPipelineTEST:/tmp/CausalPipelineTEST -p 8889:8888 90d21486fcc7```
+2. ```cd /tmp```
+3. Update the docker: ```apt-get -y update```   and  ```apt-get -y install git```
+4. ```apt-get install wget```
+5. Download anaconda ```wget https://repo.anaconda.com/archive/Anaconda3-2023.07-0-Linux-x86_64.sh```
+6. Install anaconda (keep defaults and set up```bash Anaconda3-2023.07-0-Linux-x86_64.sh```
+7. Initialise conda  ```source /root/anaconda3/bin/activate```
+8. Create new conda environment ```conda create -n causalPipeline_env python=3.7``` Note python 3.7 is required.
+
+
+### CDT Stuff
+1. Activate new environment ```conda activate causalPipeline_env```
+2. ```cd /tmp/CausalPipelineTEST```
+3. Clone the CDT repo: ```git clone https://github.com/FenTechSolutions/CausalDiscoveryToolbox.git```
+4. ```cd CausalDiscoveryToolbox```
+5. Install packages: ```python3 -mpip install -r requirements.txt```
+6. ```python3 setup.py install develop --user ```
+
+
+### Causal Effect Package
+1. ```cd /tmp/CausalPipelineTEST```
+2. Clone the causall effect package ```git clone https://github.com/pedemonte96/causaleffect```
+3. ```cd causaleffect```
+4. Install the package: ```python3 setup.py install```
+
+### Install jupyter notebook, chardet, matplotlib, and seaborn
+This is useful at least for following the tutorial file.
+
+1. Activate the conda env (if not already activated): ```conda activate causalPipeline_env```
+2. ```conda install -c anaconda jupyter -y```
+3. ```pip3 install chardet```
+4. ```conda install -c conda-forge matplotlib -y```  (may take some time)
+5. ```conda install -c anaconda seaborn -y```
+
+### Launch jupyter notebook
+1. Activate the conda env (if not already activated): ```conda activate causalPipeline_env```
+2. Select working directory ```cd /tmp/CausalPipelineTEST```
+3. Launch jupyter notebook ```jupyter notebook --ip 0.0.0.0 --no-browser --allow-root```
+3. [optional] if you get a 500 server error message, close the jupyter session Ctrl+C and try ```conda update jupyter``` then try step 3 again
+4. Go to your internet browser:  ```http://localhost:8889/```
+5. Login using the token given when you launched the notebook
+
+
+### Commit to Docker (if using docker)
+1. In a new terminal window, type ```docker ps``` this will tell you what is running
+2. Identify the container you've just been working in, and commit it with a new name:
+```docker commit <containerID> causalpipeline```
+
+
+
+## Docker Notes (recommended to use SAM causal discovery)
 
 This analysis uses SAM[1] which is included in the Causal Discovery Toolbox https://fentechsolutions.github.io/
 
 The toolbox includes about 20 methods which are both python and R based, and which may use GPU.
 
 Therefore, I recommend using a docker container, in particular with the nvidia-docker.
+
+An example tutorial for docker is here: https://zetcode.com/python/docker/
+
+And one for nvidia GPU is here:  https://towardsdatascience.com/use-nvidia-docker-to-create-awesome-deep-learning-environments-for-r-or-python-pt-i-df8e89b43a72
 
 Once docker and nvidia-docker have been successfully installed, and sufficient permissions have been granted, run ```docker pull xxxx``` for the most recent
 version of CDT.
@@ -31,7 +99,6 @@ The (non nvidia-) docker image can be run interactively via
 ```
 docker run -ti -v /folder/to/mount/:/tmp/folder -p 8889:8888 e5c643806d03
 ```
-
 
 
 where the -p flag will enable you to run:
@@ -55,35 +122,22 @@ If you want to remove/delete an image:
 ```docker rmi -f <image id> ```
 
 
-#### For GPU stuff:
+For example, once everything is installed (assuming also that conda and jupyter notebook are being used):
 ```
-nvidia-docker run -it --init --ipc=host -v /GitHub/Psych_ML/causalPipeline:/tmp/causalPipeline -p 8889:8888 35f8070e9363 /bin/bash
+nvidia-docker run -it --init --ipc=host -v /GitHub/Psych_ML/causalPipeline:/tmp/causalPipeline -p 8889:8888 8ee31bfa53e6 /bin/bash
 
-jupyter notebook --ip 0.0.0.0 --no-browser --allow-root
+cd /tmp/causalPipeline 
+
+conda activate causal_env
+
+jupyter notebook --ip 0.0.0.0 --no-browser --allow-root 
 ```
+
 Then, access this via host with a browser: ```localhost:8889/tree‌```  
 
-## 2. Install Packages
 
 
-Once in the interactive docker image, run:
-
-$ git clone https://github.com/FenTechSolutions/CausalDiscoveryToolbox.git  # Download the package 
-$ cd CausalDiscoveryToolbox
-$ pip install -r requirements.txt  # Install the requirements
-$ python setup.py install develop --user
-
-Note that the causaleffect package is not available throught pip for python 3.7, therefore install manually:
-1. git clone the repo from https://github.com/pedemonte96/causaleffect
-2. cd to the repo
-3. run python3 setup.py install
-4. commit changes to docker image
-
-otherwise, an older version of SAM will be installed, which won't have the capacity to learn graphs from mixed cont/disc. data.
-
-Don't forget to save/commit the docker image (following the instructions above)
-
-### Installing R packages
+## Installing R packages
 
 Pyhal uses rpy2==3.2.1 to call functions in R (rpy2 can be installed with ```python3 -mpip install rpy2==3.2.1```).
 
@@ -95,7 +149,6 @@ do
   R -e "install.packages('"$package"', lib='/usr/local/lib/R/site-library')"; 
 done < "rpacks.txt"
 ```
-
 
 and 
 
