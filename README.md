@@ -26,7 +26,7 @@ IMPORTANT: If you are using nvidia-docker, do not forget to commit/save the dock
 
 ### Environment Stuff
 1. If using docker, open an nvidia-docker container:
-```nvidia-docker run -ti -v /home/matthewvowels/GitHub/Psych_ML/causalPipelineTEST:/tmp/CausalPipelineTEST -p 8889:8888 90d21486fcc7```
+```nvidia-docker run -ti -v /GitHub/Psych_ML/causalPipelineTEST:/tmp/CausalPipelineTEST -p 8889:8888 90d21486fcc7```
 2. ```cd /tmp```
 3. Update the docker: ```apt-get -y update```   and  ```apt-get -y install git```
 4. ```apt-get install wget```
