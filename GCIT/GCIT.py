@@ -1,9 +1,7 @@
 # %% Necessary Packages
 import tensorflow as tf
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy import stats
-from utils import *
+from tools.utils import *
 
 
 # %% GCIT Function
